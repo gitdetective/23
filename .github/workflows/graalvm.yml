@@ -1,0 +1,103 @@
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: GraalVM Native Image build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  buildOnWindows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: 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
+          submodules: true
+      - uses: ilammy/msvc-dev-cmd@v1.5.0
+      - uses: microsoft/setup-msbuild@v1
+      - name: try
+        shell: powershell
+        run: choco install windows-sdk-7.1
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+      - uses: ayltai/setup-graalvm@v1
+        with:
+          java-version: 11
+          graalvm-version: 20.3.0
+          native-image: true
+      - name: Install Windows 8.1 SDK
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Method Get -Uri https://go.microsoft.com/fwlink/p/?LinkId=323507 -OutFile sdksetup.exe -UseBasicParsing
+          Start-Process -Wait sdksetup.exe -ArgumentList "/q", "/norestart", "/features", "OptionId.WindowsDesktopSoftwareDevelopmentKit", "OptionId.NetFxSoftwareDevelopmentKit"
+      - name: Build with Gradle
+        run: ./gradlew shadowJar nativeImage "-Dbuild.profile=full"
+        shell: powershell
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v1.3.3
+        with:
+          version: latest
+          file: target/demo-cli.exe
+          args: '-7'
+      - uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: warn
+          name: package
+          path: target/*.exe
+
+#   buildOnMac:
+#     runs-on: macos-latest
+
+#     steps:
+#       - uses: actions/checkout@v2
+#         with:
+#           token: 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
+#           submodules: true
+#       - uses: ayltai/setup-graalvm@v1
+#         with:
+#           java-version: 11
+#           graalvm-version: 20.3.0
+#           native-image: true
+#       - name: Build with Gradle
+#         run: ./gradlew shadowJar nativeImage -Dbuild.profile=full
+#       - name: Run UPX
+#         uses: svenstaro/upx-action@v2
+#         with:
+#           file: target/demo-cli
+#           args: '-7'
+#       - name: Upload artifacts
+#         run: mkdir staging && cp target/demo-cli staging/demo-cli-mac-amd64
+#       - uses: actions/upload-artifact@v2
+#         with:
+#           name: package
+#           path: staging
+
+#   buildOnLinux:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v2
+#         with:
+#           token: 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
+#           submodules: true
+#       - uses: ayltai/setup-graalvm@v1
+#         with:
+#           java-version: 11
+#           graalvm-version: 20.3.0
+#           native-image: true
+#       - name: Build with Maven
+#         run: ./gradlew shadowJar nativeImage -Dbuild.profile=full
+#       - name: Run UPX
+#         uses: crazy-max/ghaction-upx@v1.3.3
+#         with:
+#           version: latest
+#           file: target/demo-cli
+#           args: '-7'
+#       - name: Upload artifacts
+#         run: mkdir staging && cp target/demo-cli staging/demo-cli-linux-amd64
+#       - uses: actions/upload-artifact@v2
+#         with:
+#           name: package
+#           path: staging
